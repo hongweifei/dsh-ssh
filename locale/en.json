@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "SSH Hosts",
+    "description": "Run commands and copy files on remote hosts you declare, through the system OpenSSH client."
+  }
+}

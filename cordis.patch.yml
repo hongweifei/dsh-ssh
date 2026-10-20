@@ -1,0 +1,12 @@
+# dsh-ssh bundle: inserts the Host plugin row that provides the ssh_* tools.
+# Add hosts by overriding this row's `config` from the profile patch layer
+# (~/.dsh/profiles/<profile>/cordis.patch.yml); a matching override replaces
+# the whole config, so repeat every field you want to keep.
+- insert:
+    - id: dsh-ssh
+      name: dsh-ssh
+      config:
+        commandTimeoutMs: 60000
+        connectTimeoutSec: 15
+        maxOutputBytes: 65536
+        hosts: []
