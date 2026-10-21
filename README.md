@@ -23,13 +23,13 @@
 
 ## 在设置面板里配置（推荐）
 
-插件声明了 `Config` schema，**设置面板里会用 DSH 自带的表单渲染**（Settings → Plugins → dsh-ssh），
-与 YAML patch 是同一份配置的两个视图：表单保存后写回 profile patch 并通过 Loader 实时生效，
-不需要重启 `dsh web`，也不需要手改 YAML。
+插件自己注册了一个设置页：**设置 → 左侧「SSH 主机」**。页面里可以直接增删主机、编辑地址/端口/用户/
+认证方式/密钥路径/密码来源，点「保存」即写回 profile 的 `cordis.patch.yml` 并立即生效（走 DSH 的
+`settings` 服务，带版本冲突检测，不会覆盖你在别处同时做的修改）。
 
-- 表单字段与下面的字段表一一对应，每项都带说明文字；`hosts` 是可增删的列表。
-- 保存走 DSH 的 `settings` 服务，带版本号冲突检测：如果同时改了 YAML，保存会提示冲突而不是静默覆盖。
-- 密码/口令**不放进配置**，只填 `passwordEnv` 或 `passwordFile` 指向的位置。
+- 面板与 YAML 是**同一份配置**的两个视图，改哪个都行。
+- 密码三种给法，面板里都能填：直接填「密码」（明文存进 profile）、填「密码所在环境变量名」、或填「密码文件路径（0600）」。直接填最省事，但会以明文写入 `cordis.patch.yml`。
+- 这个设置页属于 Client 半区，**改完 client 代码后需要重启一次 `dsh web`** 才会出现。
 
 ## 配置（YAML，等价于表单）
 
@@ -76,7 +76,8 @@
 | `username` | 交给 ssh 决定 | 省略时用 ssh 自己的解析（含 `~/.ssh/config`） |
 | `auth` | `agent` | `agent`（密钥/ssh-agent/ssh_config 全交给 OpenSSH）、`key`、`password` |
 | `identityFile` | — | `auth: key` 时的私钥；带上 `IdentitiesOnly=yes` |
-| `passwordEnv` / `passwordFile` | — | 密码（`auth: password`）或私钥口令（`auth: key`）的来源；二选一 |
+| `password` | — | 直接写密码（**明文保存在 profile 的 `cordis.patch.yml`**，图省事用） |
+| `passwordEnv` / `passwordFile` | — | 密码（`auth: password`）或私钥口令（`auth: key`）的来源；与 `password` 三选一，优先级 `password` > `passwordEnv` > `passwordFile` |
 | `strictHostKeyChecking` | `accept-new` | `accept-new` / `yes` / `no` / `ask` |
 | `knownHostsFile` | ssh 默认 | 想隔离 known_hosts 时指定 |
 | `extraOptions` | `[]` | 原样追加 `-o Key=Value`，例如 `ProxyJump=bastion` |
