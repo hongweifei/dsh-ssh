@@ -86,6 +86,7 @@ function normalizeHost(entry, index, config, warnings, seen) {
     description: typeof entry.description === 'string' ? entry.description : '',
     auth: AUTH_KINDS.has(entry.auth) ? entry.auth : 'agent',
     identityFile: optionalString(entry.identityFile),
+    password: optionalString(entry.password),
     passwordEnv: optionalString(entry.passwordEnv),
     passwordFile: optionalString(entry.passwordFile),
     knownHostsFile: optionalString(entry.knownHostsFile),

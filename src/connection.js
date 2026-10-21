@@ -17,6 +17,7 @@ import { expandHome } from './config.js'
 const ASKPASS_ENV = 'DSH_SSH_SECRET'
 /** Resolve the password / key passphrase from the environment or a file. */
 function resolveSecret(host) {
+  if (host.password !== undefined) return host.password
   if (host.passwordEnv !== undefined) {
     const value = process.env[host.passwordEnv]
     if (value === undefined || value === '') {
@@ -106,7 +107,12 @@ function childEnv(secret, askpassPath) {
 }
 /** Resolve host credentials plus the askpass helper for one call. */
 async function connectionFor(host, askpass) {
-  if (host.auth === 'password' && host.passwordEnv === undefined && host.passwordFile === undefined) {
+  if (
+    host.auth === 'password' &&
+    host.password === undefined &&
+    host.passwordEnv === undefined &&
+    host.passwordFile === undefined
+  ) {
     throw new Error(
       `host "${host.name}": auth "password" requires passwordEnv or passwordFile; ` +
         'put the secret in an environment variable or a 0600 file instead of the plugin config',

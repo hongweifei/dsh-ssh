@@ -25,6 +25,9 @@ const Host = z.object({
     .default('agent')
     .description('认证方式：agent（交给 OpenSSH/ssh-agent）、key（私钥）、password（密码）'),
   identityFile: z.string().description('私钥路径，auth=key 时使用；支持 ~'),
+  password: z
+    .string()
+    .description('登录密码（明文保存在 profile 的 cordis.patch.yml；不想落盘就用 passwordEnv / passwordFile）'),
   passwordEnv: z.string().description('密码或私钥口令所在的环境变量名（推荐，配置文件里不落明文）'),
   passwordFile: z.string().description('密码或私钥口令所在的 0600 文件；与 passwordEnv 二选一'),
   knownHostsFile: z.string().description('自定义 known_hosts 文件；留空用 ssh 默认（~/.ssh/known_hosts）'),
