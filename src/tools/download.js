@@ -7,7 +7,7 @@ import { commonArgs, destinationOf, remotePathArgument, requireHost } from '../o
 import { startActivity } from '../live.js'
 import { runClient } from '../process.js'
 import { HOST_SCHEMA, asRecord, requireString, textBlock, transferOutputSchema } from './shared.js'
-function sshDownloadTool(config, askpass, live) {
+function sshDownloadTool(getConfig, askpass, live) {
   return {
     name: 'ssh_download',
     description:
@@ -37,6 +37,7 @@ function sshDownloadTool(config, askpass, live) {
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
+      const { config } = getConfig()
       const input = asRecord(args, 'ssh_download')
       const host = requireHost(config, requireString(input, 'host', 'ssh_download'))
       const remotePath = requireString(input, 'remotePath', 'ssh_download')

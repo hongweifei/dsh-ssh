@@ -42,19 +42,37 @@ const Host = z.object({
   commandTimeoutMs: z.natural().description('命令超时（毫秒），留空用全局值'),
 })
 
+// Every field is `volatile`: the settings panel may change it while the plugin
+// keeps running, and the Harness only offers entries that declare a live field.
+// The plugin therefore reads each value through its reference at call time.
 export const Config = z.object({
-  hosts: z.array(Host).default([]).description('允许连接的远程主机白名单；未列出的别名一律拒绝'),
-  commandTimeoutMs: z.natural().default(60_000).description('每条命令的默认超时（毫秒）'),
-  connectTimeoutSec: z.natural().default(15).description('连接与认证超时（秒）'),
-  maxOutputBytes: z.natural().default(65_536).description('stdout / stderr 各自的字节上限，超出会明确标注截断'),
+  hosts: z
+    .array(Host)
+    .default([])
+    .volatile()
+    .description('允许连接的远程主机白名单；未列出的别名一律拒绝'),
+  commandTimeoutMs: z.natural().default(60_000).volatile().description('每条命令的默认超时（毫秒）'),
+  connectTimeoutSec: z.natural().default(15).volatile().description('连接与认证超时（秒）'),
+  maxOutputBytes: z
+    .natural()
+    .default(65_536)
+    .volatile()
+    .description('stdout / stderr 各自的字节上限，超出会明确标注截断'),
   scpMode: z
     .union(SCP_MODES.map((mode) => z.const(mode)))
     .default('sftp')
+    .volatile()
     .description('scp 远端路径的传法：sftp（默认，OpenSSH 9+ 原样传，空格与引号安全）、legacy（按远端 shell 加引号，仅给旧协议/加 -O 的场景）'),
-  sshPath: z.string().default('ssh').description('ssh 可执行文件路径'),
-  scpPath: z.string().default('scp').description('scp 可执行文件路径'),
+  sshPath: z.string().default('ssh').volatile().description('ssh 可执行文件路径'),
+  scpPath: z.string().default('scp').volatile().description('scp 可执行文件路径'),
+  strictHostKeyChecking: z
+    .union(STRICT_KINDS.map((kind) => z.const(kind)))
+    .default('accept-new')
+    .volatile()
+    .description('主机密钥校验的默认策略：accept-new（首次信任）、yes（严格）、no、ask'),
   askpassPath: z
     .string()
+    .volatile()
     .description('自定义 SSH_ASKPASS helper（Windows 上若自动生成的 .cmd 不被接受时使用）'),
 })
 

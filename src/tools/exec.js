@@ -21,7 +21,7 @@ function renderExec(value) {
   if (value.stdout === '' && value.stderr === '') lines.push('(no output)')
   return lines.join('\n')
 }
-function sshExecTool(config, askpass, live) {
+function sshExecTool(getConfig, askpass, live) {
   return {
     name: 'ssh_exec',
     description:
@@ -79,6 +79,7 @@ function sshExecTool(config, askpass, live) {
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
+      const { config } = getConfig()
       const input = asRecord(args, 'ssh_exec')
       const host = requireHost(config, requireString(input, 'host', 'ssh_exec'))
       const command = requireString(input, 'command', 'ssh_exec')

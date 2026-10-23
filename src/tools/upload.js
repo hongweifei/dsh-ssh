@@ -7,7 +7,7 @@ import { startActivity } from '../live.js'
 import { runClient } from '../process.js'
 import { HOST_SCHEMA, asRecord, requireString, textBlock, transferOutputSchema } from './shared.js'
 
-function sshUploadTool(config, askpass, live) {
+function sshUploadTool(getConfig, askpass, live) {
   return {
     name: 'ssh_upload',
     description:
@@ -44,6 +44,7 @@ function sshUploadTool(config, askpass, live) {
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
+      const { config } = getConfig()
       const input = asRecord(args, 'ssh_upload')
       const host = requireHost(config, requireString(input, 'host', 'ssh_upload'))
       const localPath = resolveLocal(requireString(input, 'localPath', 'ssh_upload'))

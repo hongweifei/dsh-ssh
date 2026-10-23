@@ -23,7 +23,7 @@ function renderHosts(value) {
   for (const warning of value.warnings) lines.push(`warning: ${warning}`)
   return lines.join('\n')
 }
-function sshHostsTool(config, warnings) {
+function sshHostsTool(getConfig) {
   return {
     name: 'ssh_hosts',
     description:
@@ -58,6 +58,7 @@ function sshHostsTool(config, warnings) {
     },
     isConcurrencySafe: () => true,
     async execute() {
+      const { config, warnings } = getConfig()
       return {
         hosts: config.hosts.map((host) => ({
           name: host.name,

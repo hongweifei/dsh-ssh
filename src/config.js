@@ -132,6 +132,39 @@ function normalizeConfig(raw) {
   return { config, warnings }
 }
 
+/**
+ * Read one config field as it stands right now.
+ *
+ * Every schema field is `volatile`, so the Harness hands `apply` a reactive
+ * reference per field and refreshes it when the settings panel saves, without
+ * remounting the plugin. Reading through this helper keeps plain values working
+ * too, which is what direct construction and tests pass in.
+ */
+function liveValue(source, field) {
+  const value = source === null || typeof source !== 'object' ? undefined : source[field]
+  return value !== null && typeof value === 'object' && typeof value.get === 'function'
+    ? value.get()
+    : value
+}
+
+/**
+ * Normalize the live configuration.
+ * @param source - the plugin's config object, volatile references included.
+ */
+export function readConfig(source) {
+  return normalizeConfig({
+    hosts: liveValue(source, 'hosts'),
+    commandTimeoutMs: liveValue(source, 'commandTimeoutMs'),
+    connectTimeoutSec: liveValue(source, 'connectTimeoutSec'),
+    maxOutputBytes: liveValue(source, 'maxOutputBytes'),
+    scpMode: liveValue(source, 'scpMode'),
+    sshPath: liveValue(source, 'sshPath'),
+    scpPath: liveValue(source, 'scpPath'),
+    strictHostKeyChecking: liveValue(source, 'strictHostKeyChecking'),
+    askpassPath: liveValue(source, 'askpassPath'),
+  })
+}
+
 export {
   AUTH_KINDS,
   STRICT_KINDS,

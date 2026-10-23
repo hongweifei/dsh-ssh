@@ -42,7 +42,7 @@ function resolveSecret(host) {
  * Prepare the `SSH_ASKPASS` helper. It reads the secret from the child process
  * environment, so the secret never reaches disk or argv.
  */
-function createAskpass(config) {
+function createAskpass(readAskpassPath) {
   let directory
   let script
   const cleanup = () => {
@@ -69,7 +69,8 @@ function createAskpass(config) {
   }
   return {
     async pathFor(hostName) {
-      if (config.askpassPath !== undefined) return config.askpassPath
+      const configured = readAskpassPath()
+      if (configured !== undefined) return configured
       if (script !== undefined) return script
       if (process.platform === 'win32') {
         const node = process.execPath

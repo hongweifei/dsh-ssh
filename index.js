@@ -23,7 +23,7 @@
  *   src/tools/*.js     one file per model-facing tool
  */
 import { createAskpass } from './src/connection.js'
-import { normalizeConfig } from './src/config.js'
+import { readConfig } from './src/config.js'
 import { createLiveLog } from './src/live.js'
 import { liveRoute } from './src/route.js'
 import { sshDownloadTool } from './src/tools/download.js'
@@ -50,16 +50,19 @@ export { Config }
  * @param raw - plugin config from the profile patch layer.
  */
 export function apply(ctx, raw) {
-  const { config, warnings } = normalizeConfig(raw)
-  const askpass = createAskpass(config)
+  // Every config field is volatile, so the settings panel can change hosts while
+  // the plugin runs. Tools therefore read the live config per call instead of
+  // capturing it here.
+  const getConfig = () => readConfig(raw)
+  const askpass = createAskpass(() => getConfig().config.askpassPath)
   const live = createLiveLog()
   ctx.effect(() => askpass.cleanup)
   ctx.effect(() => {
     const disposers = [
-      ctx.tools.register(sshHostsTool(config, warnings)),
-      ctx.tools.register(sshExecTool(config, askpass, live)),
-      ctx.tools.register(sshUploadTool(config, askpass, live)),
-      ctx.tools.register(sshDownloadTool(config, askpass, live)),
+      ctx.tools.register(sshHostsTool(getConfig)),
+      ctx.tools.register(sshExecTool(getConfig, askpass, live)),
+      ctx.tools.register(sshUploadTool(getConfig, askpass, live)),
+      ctx.tools.register(sshDownloadTool(getConfig, askpass, live)),
     ]
     return () => {
       for (const dispose of disposers) dispose()
