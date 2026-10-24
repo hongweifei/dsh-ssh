@@ -135,7 +135,7 @@ window.__ModuleLoader__.load({
   // src/client/jsx.js
   function jsx(type, props, key) {
     const { children, ...rest } = props ?? {};
-    const element = { $typeof: /* @__PURE__ */ Symbol.for("react.element"), type, key: key ?? null, ref: null, props: rest };
+    const element = { $$typeof: /* @__PURE__ */ Symbol.for("react.element"), type, key: key ?? null, ref: null, props: rest };
     if (children !== void 0) element.props.children = children;
     return element;
   }
@@ -147,7 +147,7 @@ window.__ModuleLoader__.load({
       if (child.key !== null && child.key !== void 0) return child;
       return { ...child, key: `${type}-${index}` };
     });
-    return { $typeof: /* @__PURE__ */ Symbol.for("react.element"), type, key: key ?? null, ref: null, props: { ...rest, children: keyed } };
+    return { $$typeof: /* @__PURE__ */ Symbol.for("react.element"), type, key: key ?? null, ref: null, props: { ...rest, children: keyed } };
   }
 
   // src/client/shared.js
@@ -508,8 +508,7 @@ window.__ModuleLoader__.load({
         ]
       });
     }
-    return function SshHostsSettings(props) {
-      const initial = props.initial;
+    return function SshHostsSettings({ load, save, initial }) {
       const [state, setState] = react.useState(
         initial === void 0 ? {
           status: "loading",
@@ -533,7 +532,7 @@ window.__ModuleLoader__.load({
       );
       const reload = react.useCallback(async () => {
         try {
-          const loaded = await props.load();
+          const loaded = await load();
           setState((previous) => ({
             ...previous,
             status: "ready",
@@ -548,7 +547,7 @@ window.__ModuleLoader__.load({
             error: error instanceof Error ? error.message : String(error)
           }));
         }
-      }, [props]);
+      }, [load]);
       react.useEffect(() => {
         void reload();
       }, [reload]);
@@ -567,7 +566,7 @@ window.__ModuleLoader__.load({
           setState((previous) => ({ ...previous, saving: true, message: "", error: "" }));
           try {
             const rows = state.rows.filter((_, position) => position !== index).map(toStoredHost);
-            await props.save(rows, state.revision);
+            await save(rows, state.revision);
             setState((previous) => ({
               ...previous,
               saving: false,
@@ -587,7 +586,7 @@ window.__ModuleLoader__.load({
           setState((previous) => ({ ...previous, saving: true, message: "", error: "" }));
           try {
             const rows = state.rows.map(toStoredHost);
-            await props.save(rows, state.revision);
+            await save(rows, state.revision);
             setState((previous) => ({ ...previous, saving: false, savedIndex: index, message: "\u5DF2\u4FDD\u5B58\uFF0C\u914D\u7F6E\u5DF2\u751F\u6548" }));
             await reload();
           } catch (error) {
@@ -973,6 +972,8 @@ window.__ModuleLoader__.load({
     const plugin = __dshSshClient.install(react)
     exports.apply = plugin.apply
     exports.inject = plugin.inject
+    // The page components, so a render harness can mount them on their own.
+    exports.pages = plugin.pages
     return module.exports
   },
 })

@@ -16,6 +16,8 @@ window.__ModuleLoader__.load({
     const plugin = __dshSshClient.install(react)
     exports.apply = plugin.apply
     exports.inject = plugin.inject
+    // The page components, so a render harness can mount them on their own.
+    exports.pages = plugin.pages
     return module.exports
   },
 })

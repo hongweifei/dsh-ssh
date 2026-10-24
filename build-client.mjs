@@ -37,7 +37,10 @@ execFileSync(
 
 const compiled = readFileSync(temporary, 'utf8')
 const shell = readFileSync(template, 'utf8')
-const output = shell.replace('__DSH_SSH_INSTALL__', compiled)
+// A function replacement keeps the text as it is: the string form of replace
+// treats `$` in the replacement as a substitution pattern, and the bundle
+// contains `$$typeof`, which would lose one `$` and break every element.
+const output = shell.replace('__DSH_SSH_INSTALL__', () => compiled)
 writeFileSync(bundle, output)
 
 console.log(`built ${bundle}`)

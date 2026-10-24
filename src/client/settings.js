@@ -274,9 +274,13 @@ export function createSettingsPage(jsx, jsxs, react) {
     })
   }
 
-  /** The whole settings page. */
-  return function SshHostsSettings(props) {
-    const initial = props.initial
+  /**
+   * The whole settings page.
+   *
+   * The Harness spreads the registered inject face onto the component's props,
+   * so `load` and `save` arrive as separate named props.
+   */
+  return function SshHostsSettings({ load, save, initial }) {
     const [state, setState] = react.useState(
       initial === undefined
         ? {
@@ -303,7 +307,7 @@ export function createSettingsPage(jsx, jsxs, react) {
 
     const reload = react.useCallback(async () => {
       try {
-        const loaded = await props.load()
+        const loaded = await load()
         setState((previous) => ({
           ...previous,
           status: 'ready',
@@ -318,7 +322,7 @@ export function createSettingsPage(jsx, jsxs, react) {
           error: error instanceof Error ? error.message : String(error),
         }))
       }
-    }, [props])
+    }, [load])
 
     react.useEffect(() => {
       void reload()
@@ -343,7 +347,7 @@ export function createSettingsPage(jsx, jsxs, react) {
         setState((previous) => ({ ...previous, saving: true, message: '', error: '' }))
         try {
           const rows = state.rows.filter((_, position) => position !== index).map(toStoredHost)
-          await props.save(rows, state.revision)
+          await save(rows, state.revision)
           setState((previous) => ({
             ...previous,
             saving: false,
@@ -363,7 +367,7 @@ export function createSettingsPage(jsx, jsxs, react) {
         setState((previous) => ({ ...previous, saving: true, message: '', error: '' }))
         try {
           const rows = state.rows.map(toStoredHost)
-          await props.save(rows, state.revision)
+          await save(rows, state.revision)
           setState((previous) => ({ ...previous, saving: false, savedIndex: index, message: '已保存，配置已生效' }))
           await reload()
         } catch (error) {
