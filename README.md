@@ -23,12 +23,16 @@
 
 ## 在设置面板里配置（推荐）
 
-插件自己注册了一个设置页：**设置 → 左侧「SSH 主机」**。页面里可以直接增删主机、编辑地址/端口/用户/
-认证方式/密钥路径/密码来源，点「保存」即写回 profile 的 `cordis.patch.yml` 并立即生效（走 DSH 的
-`settings` 服务，带版本冲突检测，不会覆盖你在别处同时做的修改）。
+插件自己注册了一个设置页：**设置 → 左侧「SSH 主机」**。每台主机是一张可折叠的卡片，
+卡片内分成「连接」和「认证」两组；改完点「保存这台主机」即写回 profile 的
+`cordis.patch.yml` 并立即生效（走 DSH 的 `settings` 服务，带版本冲突检测，不会覆盖你在
+别处同时做的修改）。
 
 - 面板与 YAML 是**同一份配置**的两个视图，改哪个都行。
 - 密码三种给法，面板里都能填：直接填「密码」（明文存进 profile）、填「密码所在环境变量名」、或填「密码文件路径（0600）」。直接填最省事，但会以明文写入 `cordis.patch.yml`。
+- **只显示用得上的字段**：选「私钥」只出私钥路径，选「密码」才出口令来源。
+- **就地校验**：别名格式、端口范围、私钥是否填写、密码三种给法是否至少有一种，当场标出并禁用保存。
+- 主机多了以后，卡片标题行显示别名、地址、认证方式、系统类型和待补项数，折叠起来也能一眼看完。
 - 这个设置页属于 Client 半区，**改完 client 代码后需要重启一次 `dsh web`** 才会出现。
 
 ## 配置（YAML，等价于表单）
@@ -160,15 +164,17 @@
 呈现方式接近真的 ssh 登录上去操作：
 
 ```
-prod $ ssh_exec ls -la /srv
-total 12
-drwxr-xr-x 2 root root 4096 ...
-  ↳ exit 0 · 412ms · 14:12:03
+14:12:03 prod  $ ls -la /srv
+               total 12
+               drwxr-xr-x 2 root root 4096 ...
+14:12:03 prod  ↳ exit 0 · 412ms
 ```
 
-- 每行输出按终端习惯滚动：命令行带主机名与 `$` 提示符，stdout 常规色、stderr 红色、结束行灰色（失败/超时标红）
+- 每一行是「时间 + 主机 + 内容」三列，列宽固定，长行换行后仍然对齐在正文列上
+- 命令行带主机名与 `$` 提示符，stdout 常规色、stderr 红色、结束行灰色（失败/超时标红）
+- 顶部有实时状态点、主机筛选、输出搜索、跟随最新开关，以及复制与清空
 - 数据来自 Host 的同源 SSE 端点 `GET /plugins/dsh-ssh/live`（先发快照再发增量，15 秒心跳）
-- 只保留最近 600 行、Host 侧保留最近 400 条事件；都属于展示态，不落盘，`dsh web` 重启后清空
+- 只保留最近 800 行、Host 侧保留最近 400 条事件；都属于展示态，不落盘，`dsh web` 重启后清空
 - 样式只用 `--dsw-alias-*` 主题 token，跟随 DSH 主题，不自带皮肤
 
 ## 项目结构
@@ -176,7 +182,8 @@ drwxr-xr-x 2 root root 4096 ...
 ```
 dsh-ssh/
 ├── index.js              # Host 入口：name / inject / Config / apply（只做装配）
-├── client.js             # Client 入口：侧边栏面板图标 + 实时活动面板
+├── client.js             # Client 产物：打包好的单文件，由 build-client.mjs 生成
+├── build-client.mjs      # 客户端构建脚本（esbuild，把 src/client/ 打成 client.js）
 ├── src/
 │   ├── config.js         # 行配置 -> 规范化后的 hosts + 警告
 │   ├── settings.js       # Config schema（设置面板表单的来源）
@@ -185,15 +192,23 @@ dsh-ssh/
 │   ├── openssh.js        # ssh/scp 参数构造、主机查找
 │   ├── live.js           # 内存态实时活动日志（有界环形缓冲 + 订阅）
 │   ├── route.js          # 同源 SSE 端点 /plugins/dsh-ssh/live
-│   └── tools/            # 每个面向模型的工具一个文件
-│       ├── hosts.js  exec.js  upload.js  download.js
-│       └── shared.js     # 参数校验与渲染小工具
+│   ├── tools/            # 每个面向模型的工具一个文件
+│   │   ├── hosts.js  exec.js  upload.js  download.js
+│   │   └── shared.js     # 参数校验与渲染小工具
+│   └── client/           # 客户端源码（打进 client.js）
+│       ├── entry.js      # 装配：注册设置页与侧边栏面板
+│       ├── settings.js   # 设置页：主机卡片、动态字段、就地校验
+│       ├── terminal.js   # 侧边栏终端：时间/主机/内容三列
+│       ├── shared.js     # 共用控件：分段控件、输入框、按钮、标签
+│       ├── css.js        # 样式（只用 --dsw-alias-* 主题 token）
+│       └── jsx.js        # 轻量 JSX 运行时（宿主只提供 react）
 ├── cordis.patch.yml      # bundle 插入的插件行与默认配置
 ├── locale/{en,zh}.json   # 插件在插件管理页的标题/描述
 └── icon.svg
 ```
 
-���赖只有 `@deepseek-ai/schemastery`（Config schema 用），Transport 仍是系统 OpenSSH。
+依赖里只有 `@deepseek-ai/schemastery`（Config schema 用），Transport 仍是系统 OpenSSH。
+`esbuild` 只在构建客户端时用到，属开发期依赖。
 
 ## 卸载
 
