@@ -24,7 +24,6 @@ const Host = z.object({
   os: z
     .union(OS_KINDS.map((kind) => z.const(kind)))
     .default('auto')
-    .volatile()
     .description(
       '主机系统类型：auto（默认，首次连接时自动探测）、linux、macos（都是 POSIX shell）、' +
         'windows（cmd.exe）；影响命令语法与权限位处理',
