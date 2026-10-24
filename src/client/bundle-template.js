@@ -12,11 +12,10 @@ window.__ModuleLoader__.load({
     const module = { exports: {} }
     const exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
-    const install = __DSH_SSH_INSTALL__
-    const plugin = install(react, __DSH_SSH_JSX__, __DSH_SSH_JSXS__)
+    __DSH_SSH_INSTALL__
+    const plugin = __dshSshClient.install(react)
     exports.apply = plugin.apply
     exports.inject = plugin.inject
-    exports.pages = plugin.pages
     return module.exports
   },
 })

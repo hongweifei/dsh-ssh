@@ -9,6 +9,9 @@
  * A client module runs inside the page: `react` and the Harness services come
  * from the loader, no Harness client package is imported, and every colour
  * comes from the theme tokens, so both pages follow the active theme.
+ *
+ * The bundle is built so that it assigns its exports to a global name; the
+ * loader shell in `bundle-template.js` then reads them from there.
  */
 import { CSS } from './css.js'
 import { jsx, jsxs } from './jsx.js'
@@ -17,14 +20,11 @@ import { createSettingsPage } from './settings.js'
 import { createTerminalPage } from './terminal.js'
 
 /**
- * Register the plugin's client pages.
+ * Build the client module.
  * @param react - the React runtime from the module loader.
- * @param jsx - the JSX factory from the module loader.
- * @param jsxs - the JSX factory for multiple children.
  * @returns the client module exports.
  */
-
-export function install(react, jsx, jsxs) {
+export function install(react) {
   setJsxFactory(jsx)
   /** Tab kind; the pane body and title slots are keyed by it. */
   const KIND = 'ssh-live'

@@ -27,6 +27,7 @@ execFileSync(
     entry,
     '--bundle',
     '--format=iife',
+    '--global-name=__dshSshClient',
     `--outfile=${temporary}`,
     '--external:react',
     '--legal-comments=none',
@@ -36,10 +37,7 @@ execFileSync(
 
 const compiled = readFileSync(temporary, 'utf8')
 const shell = readFileSync(template, 'utf8')
-const output = shell
-  .replace('__DSH_SSH_INSTALL__', compiled)
-  .replace('__DSH_SSH_JSX__', 'jsx')
-  .replace('__DSH_SSH_JSXS__', 'jsxs')
+const output = shell.replace('__DSH_SSH_INSTALL__', compiled)
 writeFileSync(bundle, output)
 
 console.log(`built ${bundle}`)

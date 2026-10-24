@@ -12,7 +12,31 @@ window.__ModuleLoader__.load({
     const module = { exports: {} }
     const exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
-    const install = (() => {
+    var __dshSshClient = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // src/client/entry.js
+  var entry_exports = {};
+  __export(entry_exports, {
+    install: () => install
+  });
+
   // src/client/css.js
   var CSS = `
 .dssRoot{display:flex;flex-direction:column;min-height:0;height:100%;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
@@ -107,6 +131,24 @@ window.__ModuleLoader__.load({
 .dssExit[data-ok=false]{color:var(--dsw-alias-state-error-primary,var(--dsw-alias-label-primary))}
 .dssTermEmpty{color:var(--dsw-alias-label-tertiary);margin:0;white-space:pre-wrap}
 `;
+
+  // src/client/jsx.js
+  function jsx(type, props, key) {
+    const { children, ...rest } = props ?? {};
+    const element = { $typeof: /* @__PURE__ */ Symbol.for("react.element"), type, key: key ?? null, ref: null, props: rest };
+    if (children !== void 0) element.props.children = children;
+    return element;
+  }
+  function jsxs(type, props, key) {
+    const { children, ...rest } = props ?? {};
+    const list = Array.isArray(children) ? children : children === void 0 ? [] : [children];
+    const keyed = list.map((child, index) => {
+      if (child === null || child === void 0 || typeof child !== "object") return child;
+      if (child.key !== null && child.key !== void 0) return child;
+      return { ...child, key: `${type}-${index}` };
+    });
+    return { $typeof: /* @__PURE__ */ Symbol.for("react.element"), type, key: key ?? null, ref: null, props: { ...rest, children: keyed } };
+  }
 
   // src/client/shared.js
   var factory = null;
@@ -813,8 +855,8 @@ window.__ModuleLoader__.load({
   }
 
   // src/client/entry.js
-  function install(react, jsx2, jsxs2) {
-    setJsxFactory(jsx2);
+  function install(react) {
+    setJsxFactory(jsx);
     const KIND = "ssh-live";
     const tagId = "dsh-ssh/ui.css";
     if (typeof document !== "undefined" && document.querySelector(`style[data-plugin-css="${tagId}"]`) === null) {
@@ -824,22 +866,22 @@ window.__ModuleLoader__.load({
       tag.textContent = CSS;
       document.head.appendChild(tag);
     }
-    const SshHostsSettings = createSettingsPage(jsx2, jsxs2, react);
-    const SshTerminal = createTerminalPage(jsx2, jsxs2, react);
+    const SshHostsSettings = createSettingsPage(jsx, jsxs, react);
+    const SshTerminal = createTerminalPage(jsx, jsxs, react);
     function SshTerminalTitle() {
-      return jsx2("span", { children: "SSH \u7EC8\u7AEF" });
+      return jsx("span", { children: "SSH \u7EC8\u7AEF" });
     }
     function GuideIcon() {
-      return jsx2("svg", {
+      return jsx("svg", {
         width: 16,
         height: 16,
         viewBox: "0 0 16 16",
         fill: "none",
         "aria-hidden": "true",
         children: [
-          jsx2("rect", { key: "rect", x: 1.2, y: 2.2, width: 13.6, height: 11.6, rx: 3, stroke: "currentColor", strokeWidth: 1.2 }),
-          jsx2("path", { key: "prompt", d: "M4.6 6.2 6.6 8l-2 1.8", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round", strokeLinejoin: "round" }),
-          jsx2("path", { key: "line", d: "M8.4 10h3", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round" })
+          jsx("rect", { key: "rect", x: 1.2, y: 2.2, width: 13.6, height: 11.6, rx: 3, stroke: "currentColor", strokeWidth: 1.2 }),
+          jsx("path", { key: "prompt", d: "M4.6 6.2 6.6 8l-2 1.8", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round", strokeLinejoin: "round" }),
+          jsx("path", { key: "line", d: "M8.4 10h3", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round" })
         ]
       });
     }
@@ -925,12 +967,12 @@ window.__ModuleLoader__.load({
       pages: { SshHostsSettings, SshTerminal }
     };
   }
+  return __toCommonJS(entry_exports);
 })();
 
-    const plugin = install(react, jsx, jsxs)
+    const plugin = __dshSshClient.install(react)
     exports.apply = plugin.apply
     exports.inject = plugin.inject
-    exports.pages = plugin.pages
     return module.exports
   },
 })
