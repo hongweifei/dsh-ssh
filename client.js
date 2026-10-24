@@ -56,6 +56,12 @@ window.__ModuleLoader__.load({
 .dssSetLabel{font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .dssSetInput,.dssSetSelect{font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:transparent;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;padding:5px 8px;min-width:0}
 .dssSetInput:focus-visible,.dssSetSelect:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+/* The dropdown list of a native select is drawn by the browser, not by the page
+   stylesheet, so it needs the colour scheme and an explicit option background
+   to stay readable in the dark theme. The scheme is set per element from the
+   active Harness theme, so a single value is used here: a two-value list would
+   let the browser follow the operating system preference instead. */
+.dssSetSelect option{background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary,#111)}
 .dssSetRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dssSetBtn{font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:transparent;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;padding:5px 10px;cursor:pointer}
 .dssSetBtn:hover{background:var(--dsw-alias-bg-l2,transparent)}
@@ -105,6 +111,29 @@ window.__ModuleLoader__.load({
       return row
     }
 
+    /**
+     * The colour scheme of the active Harness theme.
+     *
+     * A native select draws its dropdown list with the browser, and the browser
+     * picks that list's colours from the element's colour scheme. The Harness
+     * theme decides whether the page is light or dark, so the scheme follows the
+     * theme rather than the operating system preference.
+     */
+    function useColorScheme(ctx) {
+      const [scheme, setScheme] = react.useState('dark')
+      react.useEffect(() => {
+        const theme = ctx?.theme
+        if (theme === undefined) return undefined
+        const read = (snapshot) => {
+          const active = (snapshot ?? theme.getTheme())?.active
+          setScheme(active?.colorScheme === 'light' ? 'light' : 'dark')
+        }
+        read(undefined)
+        return ctx.on('theme/change', read)
+      }, [ctx])
+      return scheme
+    }
+
     /** One labeled input inside the settings page. */
     function Field(props) {
       return jsxs('label', {
@@ -129,6 +158,10 @@ window.__ModuleLoader__.load({
       const [revision, setRevision] = react.useState(undefined)
       const [note, setNote] = react.useState('')
       const [error, setError] = react.useState('')
+      // The dropdown list of a native select is drawn by the browser, which needs
+      // to know the colour scheme; follow the Harness' active theme rather than
+      // the operating system preference.
+      const colorScheme = useColorScheme(props.ctx)
 
       const reload = react.useCallback(async () => {
         setError('')
@@ -240,6 +273,7 @@ window.__ModuleLoader__.load({
                                 jsx('span', { className: 'dssSetLabel', children: '认证方式' }),
                                 jsx('select', {
                                   className: 'dssSetSelect',
+                                  style: { colorScheme },
                                   value: row.auth,
                                   onChange: (event) => edit(index, 'auth', event.target.value),
                                   children: AUTH_KINDS.map((kind) =>
@@ -254,6 +288,7 @@ window.__ModuleLoader__.load({
                                 jsx('span', { className: 'dssSetLabel', children: '系统类型' }),
                                 jsx('select', {
                                   className: 'dssSetSelect',
+                                  style: { colorScheme },
                                   value: row.os,
                                   onChange: (event) => edit(index, 'os', event.target.value),
                                   children: OS_LABELS.map(([value, label]) =>
@@ -489,7 +524,7 @@ window.__ModuleLoader__.load({
                 order: 30,
                 label: () => 'SSH 主机',
                 locale: 'settings.ssh-hosts',
-                inject: () => ({ load, save }),
+                inject: () => ({ load, save, ctx }),
               },
               SshHostsSettings
             )
@@ -533,7 +568,7 @@ window.__ModuleLoader__.load({
     }
 
     exports.apply = apply
-    exports.inject = ['slots', 'remote', 'remote.settings', 'sidebarRight', 'sidebarRightTabs']
+    exports.inject = ['slots', 'remote', 'remote.settings', 'sidebarRight', 'sidebarRightTabs', 'theme']
     return module.exports
   }
 })
