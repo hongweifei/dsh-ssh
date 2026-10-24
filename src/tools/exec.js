@@ -3,6 +3,7 @@ import { positiveInt } from '../config.js'
 import { connectionFor } from '../connection.js'
 import { commonArgs, destinationOf, requireHost } from '../openssh.js'
 import { startActivity } from '../live.js'
+import { resolveHostOs } from '../remote.js'
 import { runClient } from '../process.js'
 import { HOST_SCHEMA, asRecord, requireString, textBlock, textOf } from './shared.js'
 function renderExec(value) {
@@ -21,7 +22,7 @@ function renderExec(value) {
   if (value.stdout === '' && value.stderr === '') lines.push('(no output)')
   return lines.join('\n')
 }
-function sshExecTool(getConfig, askpass, live) {
+function sshExecTool(getConfig, askpass, live, detector) {
   return {
     name: 'ssh_exec',
     description:
@@ -29,6 +30,8 @@ function sshExecTool(getConfig, askpass, live) {
       "The command runs in that host's login shell with the configured user's privileges, so it can change remote state " +
       '(files, services, packages); nothing is sandboxed remotely. Each stream is capped by the plugin maxOutputBytes. ' +
       'Success is exitCode 0: OpenSSH may still print informational warnings on stderr. ' +
+      'Check the host\'s "os" in ssh_hosts first: a linux or macos host runs a POSIX shell, ' +
+      'a windows host runs cmd.exe (use Windows commands and %VARIABLE% syntax there). ' +
       'Use ssh_hosts to list the allowed aliases.',
     parameters: {
       type: 'object',
@@ -81,10 +84,11 @@ function sshExecTool(getConfig, askpass, live) {
     async execute(args, exec) {
       const { config } = getConfig()
       const input = asRecord(args, 'ssh_exec')
-      const host = requireHost(config, requireString(input, 'host', 'ssh_exec'))
+      const configured = requireHost(config, requireString(input, 'host', 'ssh_exec'))
       const command = requireString(input, 'command', 'ssh_exec')
-      const timeoutMs = positiveInt(input.timeoutMs, host.commandTimeoutMs)
-      const connection = await connectionFor(host, askpass)
+      const timeoutMs = positiveInt(input.timeoutMs, configured.commandTimeoutMs)
+      const connection = await connectionFor(configured, askpass)
+      const host = await resolveHostOs(config, configured, connection, detector)
       const activity = startActivity(live, {
         host: host.name,
         tool: 'ssh_exec',

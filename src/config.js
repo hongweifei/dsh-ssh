@@ -8,6 +8,7 @@ import { join, resolve as resolvePath } from 'node:path'
 const AUTH_KINDS = new Set(['agent', 'key', 'password'])
 const STRICT_KINDS = new Set(['accept-new', 'yes', 'no', 'ask'])
 const SCP_MODES = new Set(['sftp', 'legacy'])
+const OS_KINDS = new Set(['auto', 'linux', 'macos', 'windows'])
 const DEFAULT_COMMAND_TIMEOUT_MS = 60_000
 const DEFAULT_CONNECT_TIMEOUT_SEC = 15
 const DEFAULT_MAX_OUTPUT_BYTES = 64 * 1024
@@ -65,6 +66,9 @@ function normalizeHost(entry, index, config, warnings, seen) {
   if (entry.auth !== undefined && !AUTH_KINDS.has(entry.auth)) {
     warnings.push(`${label}.auth "${String(entry.auth)}" is not agent|key|password; using "agent"`)
   }
+  if (entry.os !== undefined && !OS_KINDS.has(entry.os)) {
+    warnings.push(`${label}.os "${String(entry.os)}" is not auto|linux|macos|windows; using "auto"`)
+  }
   const extraOptions = []
   if (entry.extraOptions !== undefined) {
     if (Array.isArray(entry.extraOptions)) {
@@ -84,6 +88,7 @@ function normalizeHost(entry, index, config, warnings, seen) {
     port: positiveInt(entry.port, 22),
     username: optionalString(entry.username),
     description: typeof entry.description === 'string' ? entry.description : '',
+    os: OS_KINDS.has(entry.os) ? entry.os : 'auto',
     auth: AUTH_KINDS.has(entry.auth) ? entry.auth : 'agent',
     identityFile: optionalString(entry.identityFile),
     password: optionalString(entry.password),
@@ -169,6 +174,7 @@ export {
   AUTH_KINDS,
   STRICT_KINDS,
   SCP_MODES,
+  OS_KINDS,
   DEFAULT_COMMAND_TIMEOUT_MS,
   DEFAULT_CONNECT_TIMEOUT_SEC,
   DEFAULT_MAX_OUTPUT_BYTES,

@@ -25,6 +25,12 @@ window.__ModuleLoader__.load({
     /** Rows kept in the terminal view. */
     const MAX_ROWS = 600
     const AUTH_KINDS = ['agent', 'key', 'password']
+    const OS_LABELS = [
+      ['auto', '自动检测'],
+      ['linux', 'Linux（POSIX shell）'],
+      ['macos', 'macOS（POSIX shell）'],
+      ['windows', 'Windows（cmd.exe）'],
+    ]
 
     const css = `
 .dssTerm{display:flex;flex-direction:column;min-height:0;height:100%}
@@ -82,6 +88,7 @@ window.__ModuleLoader__.load({
       username: '',
       password: '',
       auth: 'agent',
+      os: 'auto',
       identityFile: '',
       passwordEnv: '',
       passwordFile: '',
@@ -237,6 +244,20 @@ window.__ModuleLoader__.load({
                                   onChange: (event) => edit(index, 'auth', event.target.value),
                                   children: AUTH_KINDS.map((kind) =>
                                     jsx('option', { value: kind, children: kind }, kind)
+                                  ),
+                                }),
+                              ],
+                            }),
+                            jsxs('label', {
+                              className: 'dssSetField',
+                              children: [
+                                jsx('span', { className: 'dssSetLabel', children: '系统类型' }),
+                                jsx('select', {
+                                  className: 'dssSetSelect',
+                                  value: row.os,
+                                  onChange: (event) => edit(index, 'os', event.target.value),
+                                  children: OS_LABELS.map(([value, label]) =>
+                                    jsx('option', { value, children: label }, value)
                                   ),
                                 }),
                               ],

@@ -10,6 +10,7 @@
 import z from '@deepseek-ai/schemastery'
 
 const AUTH_KINDS = ['agent', 'key', 'password']
+const OS_KINDS = ['auto', 'linux', 'macos', 'windows']
 const STRICT_KINDS = ['accept-new', 'yes', 'no', 'ask']
 const SCP_MODES = ['sftp', 'legacy']
 
@@ -20,6 +21,14 @@ const Host = z.object({
   port: z.natural().default(22).description('SSH 端口'),
   username: z.string().description('登录用户；留空则由 ssh 自己解析（含 ~/.ssh/config）'),
   description: z.string().description('备注，仅用于展示'),
+  os: z
+    .union(OS_KINDS.map((kind) => z.const(kind)))
+    .default('auto')
+    .volatile()
+    .description(
+      '主机系统类型：auto（默认，首次连接时自动探测）、linux、macos（都是 POSIX shell）、' +
+        'windows（cmd.exe）；影响命令语法与权限位处理',
+    ),
   auth: z
     .union(AUTH_KINDS.map((kind) => z.const(kind)))
     .default('agent')

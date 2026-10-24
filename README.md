@@ -74,6 +74,7 @@
 | `host` | 同 `name` | 省略时用别名当主机名，可直接复用 `~/.ssh/config` 里已有的 Host 别名 |
 | `port` | `22` | |
 | `username` | 交给 ssh 决定 | 省略时用 ssh 自己的解析（含 `~/.ssh/config`） |
+| `os` | `auto` | 主机系统类型：`auto`（首次使用时自动探测）、`linux`、`macos`（都是 POSIX shell）、`windows`（cmd.exe）；见下 |
 | `auth` | `agent` | `agent`（密钥/ssh-agent/ssh_config 全交给 OpenSSH）、`key`、`password` |
 | `identityFile` | — | `auth: key` 时的私钥；带上 `IdentitiesOnly=yes` |
 | `password` | — | 直接写密码（**明文保存在 profile 的 `cordis.patch.yml`**，图省事用） |
@@ -85,6 +86,36 @@
 
 全局字段：`sshPath` / `scpPath`（默认 `ssh` / `scp`）、`commandTimeoutMs`、`connectTimeoutSec`、
 `maxOutputBytes`、`askpassPath`、`scpMode`（见下）。
+
+### os：主机系统类型
+
+`os` 有三个取值：
+
+| 取值 | 含义 |
+|---|---|
+| `auto`（默认） | 首次用到这台主机时自动探测一次，结果记住 |
+| `linux` | 明确是 Linux（POSIX shell） |
+| `macos` | 明确是 macOS（POSIX shell） |
+| `windows` | 明确是 cmd.exe（Windows 自带 OpenSSH 的默认 shell） |
+
+**自动探测**的原理：跑一条 `(uname -s 2>/dev/null || echo NO_UNAME)`。macOS 与 Linux 都有 `uname`，
+分别输出 `Darwin` 与 `Linux`；cmd.exe 里没有 `uname`，于是走回退分支输出 `NO_UNAME`
+（`2>/dev/null` 在 cmd.exe 里被当成文件名，但 `||` 回退照样执行，探测不会失败）。
+三种 shell 下这条命令都是合法语法，输出却各不相同。探测结果按主机缓存，一台主机只探一次；
+探测失败时按 `linux` 处理。`ssh_hosts` 会同时返回 `os`（配置值）与 `detectedOs`（已探明的值，
+未探时为空）。
+
+`os` 影响两处：
+
+- **命令语法**：`ssh_exec` 的命令原样交给远端 shell，所以 Windows 主机要写 cmd.exe 的命令
+  （`dir`、`echo %USERNAME%`、`type a.txt`），Linux 与 macOS 主机写 POSIX 命令（`ls`、`echo $USER`、
+  `cat a.txt`）。`&&` 三边都支持。`ssh_hosts` 会返回每台主机的 `os`，据此选语法。
+- **权限位**：Windows 没有 POSIX 权限位，`ssh_upload` 传 `mode` 时会跳过 chmod，并在结果里
+  如实写明「未应用（该主机没有权限位）」，而不是执行一条必然失败的 `chmod`。Linux 与 macOS 都有
+  权限位，`chmod` 照常执行（`--` 是 POSIX 的结束选项标记，GNU coreutils 与 BSD `chmod` 都接受）。
+
+远端路径在 Windows 主机上按 SFTP 路径解释，`C:/Users/name/file.txt`、`C:\Users\name\file.txt`
+与相对路径都可用。
 
 ### scpMode：远端路径怎么交给 scp
 

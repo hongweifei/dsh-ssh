@@ -5,9 +5,10 @@ import { positiveInt, resolveLocal } from '../config.js'
 import { connectionFor } from '../connection.js'
 import { commonArgs, destinationOf, remotePathArgument, requireHost } from '../openssh.js'
 import { startActivity } from '../live.js'
+import { resolveHostOs } from '../remote.js'
 import { runClient } from '../process.js'
 import { HOST_SCHEMA, asRecord, requireString, textBlock, transferOutputSchema } from './shared.js'
-function sshDownloadTool(getConfig, askpass, live) {
+function sshDownloadTool(getConfig, askpass, live, detector) {
   return {
     name: 'ssh_download',
     description:
@@ -39,11 +40,12 @@ function sshDownloadTool(getConfig, askpass, live) {
     async execute(args, exec) {
       const { config } = getConfig()
       const input = asRecord(args, 'ssh_download')
-      const host = requireHost(config, requireString(input, 'host', 'ssh_download'))
+      const configured = requireHost(config, requireString(input, 'host', 'ssh_download'))
       const remotePath = requireString(input, 'remotePath', 'ssh_download')
       const localPath = resolveLocal(requireString(input, 'localPath', 'ssh_download'))
-      const timeoutMs = positiveInt(input.timeoutMs, host.commandTimeoutMs)
-      const connection = await connectionFor(host, askpass)
+      const timeoutMs = positiveInt(input.timeoutMs, configured.commandTimeoutMs)
+      const connection = await connectionFor(configured, askpass)
+      const host = await resolveHostOs(config, configured, connection, detector)
       const activity = startActivity(live, {
         host: host.name,
         tool: 'ssh_download',

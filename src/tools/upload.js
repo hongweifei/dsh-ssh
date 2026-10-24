@@ -2,12 +2,13 @@
 import { statSync } from 'node:fs'
 import { positiveInt, resolveLocal } from '../config.js'
 import { connectionFor } from '../connection.js'
-import { commonArgs, destinationOf, remotePathArgument, remoteShellQuote, requireHost } from '../openssh.js'
+import { commonArgs, destinationOf, remotePathArgument, requireHost } from '../openssh.js'
 import { startActivity } from '../live.js'
+import { chmodCommand, resolveHostOs } from '../remote.js'
 import { runClient } from '../process.js'
 import { HOST_SCHEMA, asRecord, requireString, textBlock, transferOutputSchema } from './shared.js'
 
-function sshUploadTool(getConfig, askpass, live) {
+function sshUploadTool(getConfig, askpass, live, detector) {
   return {
     name: 'ssh_upload',
     description:
@@ -35,22 +36,26 @@ function sshUploadTool(getConfig, askpass, live) {
       },
     },
     output: {
-      schema: transferOutputSchema({ mode: { type: 'string' } }),
+      schema: transferOutputSchema({ mode: { type: 'string' }, modeApplied: { type: 'boolean' } }),
       render: (_args, value) =>
         textBlock(
           `copied ${value.localPath} → ${value.host}:${value.remotePath} (${value.bytes} bytes)` +
-            (value.mode === '' ? '; mode unchanged' : `; mode ${value.mode}`),
+            (value.modeApplied === true
+              ? `; mode ${value.mode}`
+              : value.mode === ''
+                ? '; mode unchanged'
+                : `; mode ${value.mode} not applied (this host has no permission bits)`),
         ),
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const { config } = getConfig()
       const input = asRecord(args, 'ssh_upload')
-      const host = requireHost(config, requireString(input, 'host', 'ssh_upload'))
+      const configured = requireHost(config, requireString(input, 'host', 'ssh_upload'))
       const localPath = resolveLocal(requireString(input, 'localPath', 'ssh_upload'))
       const remotePath = requireString(input, 'remotePath', 'ssh_upload')
       const mode = input.mode === undefined ? '' : requireString(input, 'mode', 'ssh_upload')
-      const timeoutMs = positiveInt(input.timeoutMs, host.commandTimeoutMs)
+      const timeoutMs = positiveInt(input.timeoutMs, configured.commandTimeoutMs)
       if (mode !== '' && !/^[0-7]{3,4}$/.test(mode)) {
         throw new Error(`ssh_upload: "mode" must be octal permission bits such as "644"; got "${mode}"`)
       }
@@ -64,7 +69,8 @@ function sshUploadTool(getConfig, askpass, live) {
           `ssh_upload: cannot read local file ${localPath}: ${error instanceof Error ? error.message : String(error)}`,
         )
       }
-      const connection = await connectionFor(host, askpass)
+      const connection = await connectionFor(configured, askpass)
+      const host = await resolveHostOs(config, configured, connection, detector)
       const activity = startActivity(live, {
         host: host.name,
         tool: 'ssh_upload',
@@ -87,10 +93,11 @@ function sshUploadTool(getConfig, askpass, live) {
         throw new Error(`ssh_upload failed (scp exit ${result.exitCode}): ${(result.stderr || result.stdout).trim()}`)
       }
       activity.end(result)
-      if (mode !== '') {
-        const chmod = await runClient(
+      const chmod = chmodCommand(host, mode, remotePath)
+      if (chmod.supported) {
+        const applied = await runClient(
           config.sshPath,
-          [...commonArgs(host, connection.interactive, '-p'), destinationOf(host), `chmod ${mode} -- ${remoteShellQuote(remotePath)}`],
+          [...commonArgs(host, connection.interactive, '-p'), destinationOf(host), chmod.command],
           {
             env: connection.env,
             timeoutMs,
@@ -98,11 +105,18 @@ function sshUploadTool(getConfig, askpass, live) {
             maxOutputBytes: config.maxOutputBytes,
           },
         )
-        if (chmod.exitCode !== 0) {
-          throw new Error(`ssh_upload: copied the file but chmod ${mode} failed: ${(chmod.stderr || chmod.stdout).trim()}`)
+        if (applied.exitCode !== 0) {
+          throw new Error(`ssh_upload: copied the file but chmod ${mode} failed: ${(applied.stderr || applied.stdout).trim()}`)
         }
       }
-      return { host: host.name, localPath, remotePath, bytes: size, mode }
+      return {
+        host: host.name,
+        localPath,
+        remotePath,
+        bytes: size,
+        mode,
+        modeApplied: chmod.supported && mode !== '',
+      }
     },
     presentCall: (args) => ({
       card: 'generic',
