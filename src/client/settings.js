@@ -64,9 +64,12 @@ export function hostRow(host) {
  */
 export function validateHost(row) {
   const problems = []
-  if (row.name.trim() === '') problems.push('缺少别名')
-  else if (!/^[A-Za-z0-9._-]+$/.test(row.name.trim())) {
-    problems.push('别名只能包含字母、数字、点、下划线和连字符')
+  const name = row.name.trim()
+  if (name === '') problems.push('缺少别名')
+  else if (/\s/.test(name)) {
+    // The alias becomes the SSH host when no address is given, and a target
+    // with a space in it cannot be resolved by OpenSSH.
+    problems.push('别名不能包含空白字符')
   }
   const port = Number(row.port)
   if (!Number.isInteger(port) || port < 1 || port > 65535) problems.push('端口需在 1–65535 之间')

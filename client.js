@@ -290,9 +290,10 @@ window.__ModuleLoader__.load({
   }
   function validateHost(row) {
     const problems = [];
-    if (row.name.trim() === "") problems.push("\u7F3A\u5C11\u522B\u540D");
-    else if (!/^[A-Za-z0-9._-]+$/.test(row.name.trim())) {
-      problems.push("\u522B\u540D\u53EA\u80FD\u5305\u542B\u5B57\u6BCD\u3001\u6570\u5B57\u3001\u70B9\u3001\u4E0B\u5212\u7EBF\u548C\u8FDE\u5B57\u7B26");
+    const name = row.name.trim();
+    if (name === "") problems.push("\u7F3A\u5C11\u522B\u540D");
+    else if (/\s/.test(name)) {
+      problems.push("\u522B\u540D\u4E0D\u80FD\u5305\u542B\u7A7A\u767D\u5B57\u7B26");
     }
     const port = Number(row.port);
     if (!Number.isInteger(port) || port < 1 || port > 65535) problems.push("\u7AEF\u53E3\u9700\u5728 1\u201365535 \u4E4B\u95F4");
