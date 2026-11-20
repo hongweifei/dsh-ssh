@@ -62,6 +62,7 @@ function sshDownloadTool(getConfig, askpass, live, detector) {
         timeoutMs,
         signal: exec?.signal,
         maxOutputBytes: config.maxOutputBytes,
+        encoding: config.remoteEncoding,
         onChunk: (stream, chunk) => activity.chunk(stream, chunk.toString('utf8')),
       })
       if (result.exitCode !== 0) {

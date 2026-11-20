@@ -13,6 +13,8 @@ const AUTH_KINDS = ['agent', 'key', 'password']
 const OS_KINDS = ['auto', 'linux', 'macos', 'windows']
 const STRICT_KINDS = ['accept-new', 'yes', 'no', 'ask']
 const SCP_MODES = ['sftp', 'legacy']
+const ENCODING_KINDS = ['auto', 'utf8', 'gbk']
+const SESSION_MODES = ['auto', 'off']
 
 /** One allow-listed remote host. */
 const Host = z.object({
@@ -66,6 +68,27 @@ export const Config = z.object({
     .default(65_536)
     .volatile()
     .description('stdout / stderr 各自的字节上限，超出会明确标注截断'),
+  remoteEncoding: z
+    .union(ENCODING_KINDS.map((kind) => z.const(kind)))
+    .default('auto')
+    .volatile()
+    .description(
+      '远端输出编码：auto（默认，先按 UTF-8 解，失败再按 GBK 解）、utf8、gbk。' +
+        'Windows 中文主机的 cmd.exe 通常输出 GBK，auto 即可，不需要 chcp',
+    ),
+  sessionMode: z
+    .union(SESSION_MODES.map((mode) => z.const(mode)))
+    .default('auto')
+    .volatile()
+    .description(
+      'auto（默认）：ssh_exec 优先复用每台主机的常驻登录 shell，免重复认证并保留 cd/环境变量；' +
+        'off：每条命令都用一次性的 ssh 进程（等价于旧行为）',
+    ),
+  sessionIdleMs: z
+    .natural()
+    .default(300_000)
+    .volatile()
+    .description('常驻 shell 空闲多久后关闭（毫秒；0 表示不自动关闭）'),
   scpMode: z
     .union(SCP_MODES.map((mode) => z.const(mode)))
     .default('sftp')

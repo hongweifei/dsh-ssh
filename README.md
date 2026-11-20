@@ -8,17 +8,68 @@
 - **白名单**：只有 `config.hosts` 里声明过的别名能连，别的目的地一律拒绝。
 - **不碰 TTY**：密码/口令走 `SSH_ASKPASS`（OpenSSH 8.4+），因此没有终端也能认证；
   密码只出现在子进程环境里，不进 argv、不进日志、不回给模型。
+- **中文不乱码**：远端输出按 UTF-8 → GBK 自动解码，Windows 中文主机的 `cmd.exe`
+  不需要先 `chcp 65001`；解码在整段字节上做，多字节字符被管道切开也不会碎。
+- **常驻会话**：默认每台主机保持一条已认证的登录 shell，连续调用免重复认证，
+  `cd` 与环境变量跨调用保留；超时或断开会自动重建，也可用 `fresh: true` 走一次性连接。
 
 ## 工具
 
 | 工具             | 作用                                        | 关键参数                                                     |
 | -------------- | ----------------------------------------- | -------------------------------------------------------- |
 | `ssh_hosts`    | 列出本 profile 允许的主机与认证方式                    | 无                                                        |
-| `ssh_exec`     | 在主机上执行一条命令，返回 exit code / stdout / stderr | `host`, `command`, `timeoutMs?`                          |
+| `ssh_exec`     | 在主机上执行一条命令，返回 exit code / stdout / stderr | `host`, `command`, `timeoutMs?`, `fresh?`                 |
 | `ssh_upload`   | 本地文件 → 远端（scp）                            | `host`, `localPath`, `remotePath`, `mode?`, `timeoutMs?` |
 | `ssh_download` | 远端文件 → 本地（scp，自动建本地目录）                    | `host`, `remotePath`, `localPath`, `timeoutMs?`          |
 
 单条流输出默认截断到 `maxOutputBytes`（64 KiB），截断会在结果里明确标出。
+
+`ssh_exec` 的结果里有两个额外字段：`via`（`session` 或 `one-shot`）说明这次走的哪条路径，
+`stdoutEncoding` / `stderrEncoding`（`utf-8` 或 `gbk`）说明这段输出按什么编码解的。
+`ssh_hosts` 的 `session` 字段显示该主机是否已有常驻 shell（`idle` / `running` / 空）。
+
+## 常驻会话：免重复认证，保留 cd 与环境变量
+
+一次性 `ssh host <command>` 每次都要重新做 TCP、密钥交换和认证（密码认证通常 1 秒上下），
+而且命令之间不保留 `cd` 与环境变量。插件因此默认给每台主机维持一条**已认证的登录 shell**：
+
+- 第一次 `ssh_exec` 建会话，之后同主机的调用直接复用，省掉重复认证。
+- `cd /d D:\x`、`set VAR=value` 在后续调用里仍然有效，接近真的登录上去操作。
+- `durationMs` 是整次调用的耗时：第一次包含建连与认证，之后通常只剩命令本身的时间。
+- Windows 主机跑 `cmd.exe /q`（`/q` 关掉命令回显），Linux / macOS 主机跑默认登录 shell；
+  两种情况都用一次性随机标记来切分每次调用的输出与 exit code。
+- 会话空闲 `sessionIdleMs`（默认 5 分钟）后自动关闭；插件卸载时全部关闭。
+- `ssh_exec` 传 `fresh: true` 可以跳过会话，走一条一次性连接（多行脚本、读 stdin 的
+  命令如 `more` / `pause` / `set /p` 用它）。
+
+限制与代价，用之前值得知道：
+
+- **Windows 会话里命令必须单行**；要串多步就用 `&`，或者 `fresh: true` 跑多行脚本。
+- 会话内命令**串行执行**（一条 shell 只有一个 stdin），并发的 `ssh_exec` 会排队。
+- **超时 = 重置会话**：shell 阻塞在命令里时没法从管道里单独打断它（Windows 没有信号通道），
+  所以超时会杀掉整条 `ssh`，下一次调用重新连接，上一轮的 `cd`/变量丢失；结果里
+  `timedOut: true`、`sessionReset: true`。
+- 不要在会话里跑 `exit` / `logout`，那会关掉 shell；下一次调用会自动重建。
+- Win32-OpenSSH **不支持 `ControlMaster` 连接复用**，所以这里复用的是登录 shell，而不是
+  SSH 连接池；stdout 与 stderr 仍然各走各的流，只是同属这一条会话。
+- 想要旧行为（每条命令一条新连接）就把 `sessionMode` 设成 `off`。
+
+## 中文与编码
+
+Windows 中文主机的 `cmd.exe` 把 `dir`、`type` 这类输出按 **GBK（代码页 936）** 写出来。
+`chcp 65001` 改的是控制台代码页，对一个已经按 GBK 写了字节的进程没有补救作用，
+所以插件改为自己解码：
+
+- `remoteEncoding: auto`（默认）：先按**严格 UTF-8** 解，失败再按 GBK 解；ASCII 在两种编码
+  下相同，因此绝大多数 shell 输出不受影响。
+- `remoteEncoding: utf8` / `gbk`：强制指定，适合自动判断不合心意的极端情况。
+- 解码在**整段字节**上做，不按 chunk 解，所以中文不会在管道分块处变成 `�`。
+- 侧边栏「SSH 终端」里的实时输出用同样的规则增量解码；纯 ASCII 先显示，遇到非 ASCII
+  才决定编码，不会先刷一屏乱码再改。
+- 结果头会标出实际用的编码，例如 `--- stdout (gbk) ---`，方便确认是不是解对了。
+
+如果某条命令自己切了代码页（例如 `chcp 65001` 后输出 UTF-8），下一次调用的自动判断会
+跟着变，因为解码是每次调用独立做的。
 
 
 ## 在设置面板里配置（推荐）
@@ -49,6 +100,9 @@
     commandTimeoutMs: 60000      # 命令默认超时
     connectTimeoutSec: 15        # TCP/认证连接超时
     maxOutputBytes: 65536        # 每条流( stdout/stderr )的字节上限
+    remoteEncoding: auto         # auto | utf8 | gbk（见「中文与编码」）
+    sessionMode: auto            # auto（常驻会话）| off（每次新连接）
+    sessionIdleMs: 300000        # 常驻 shell 空闲多久关闭
     # sshPath: ssh               # 需要时改绝对路径
     # scpPath: scp
     hosts:
@@ -90,7 +144,7 @@
 | `connectTimeoutSec` / `commandTimeoutMs` | 继承全局 | 单主机覆盖 |
 
 全局字段：`sshPath` / `scpPath`（默认 `ssh` / `scp`）、`commandTimeoutMs`、`connectTimeoutSec`、
-`maxOutputBytes`、`askpassPath`、`scpMode`（见下）。
+`maxOutputBytes`、`remoteEncoding`、`sessionMode`、`sessionIdleMs`、`askpassPath`、`scpMode`（见下）。
 
 ### os：主机系统类型
 
@@ -188,7 +242,9 @@ dsh-ssh/
 ├── src/
 │   ├── config.js         # 行配置 -> 规范化后的 hosts + 警告
 │   ├── settings.js       # Config schema（设置面板表单的来源）
+│   ├── encoding.js       # UTF-8/GBK 自动解码（整段 + 实时增量）
 │   ├── process.js        # OpenSSH 子进程：有界输出、超时、取消、进程组回收
+│   ├── session.js        # 每台主机的常驻登录 shell（免重复认证、保留 cd/env）
 │   ├── connection.js     # 凭据解析 + SSH_ASKPASS helper
 │   ├── openssh.js        # ssh/scp 参数构造、主机查找
 │   ├── live.js           # 内存态实时活动日志（有界环形缓冲 + 订阅）

@@ -17,17 +17,18 @@ function renderHosts(value) {
     for (const host of value.hosts) {
       const user = host.username === '' ? '' : `${host.username}@`
       const note = host.description === '' ? '' : `  — ${host.description}`
-      lines.push(`- ${host.name} → ${user}${host.destination}:${host.port} [auth=${host.auth} os=${host.os}${host.detectedOs === '' ? '' : ` detected=${host.detectedOs}`}]${note}`)
+      const warm = host.session === '' ? '' : ` session=${host.session}`
+      lines.push(`- ${host.name} → ${user}${host.destination}:${host.port} [auth=${host.auth} os=${host.os}${host.detectedOs === '' ? '' : ` detected=${host.detectedOs}`}${warm}]${note}`)
     }
   }
   for (const warning of value.warnings) lines.push(`warning: ${warning}`)
   return lines.join('\n')
 }
-function sshHostsTool(getConfig, detector) {
+function sshHostsTool(getConfig, detector, sessions) {
   return {
     name: 'ssh_hosts',
     description:
-      'List the SSH hosts this profile may reach through the dsh-ssh plugin: alias, destination, user, authentication kind, operating system and description. Call it before ssh_exec to learn which aliases exist and what shell each host runs.',
+      'List the SSH hosts this profile may reach through the dsh-ssh plugin: alias, destination, user, authentication kind, operating system and description, and whether a persistent shell is already warm (session). Call it before ssh_exec to learn which aliases exist and what shell each host runs.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     output: {
       schema: {
@@ -40,7 +41,7 @@ function sshHostsTool(getConfig, detector) {
             items: {
               type: 'object',
               additionalProperties: false,
-              required: ['name', 'destination', 'port', 'username', 'auth', 'os', 'detectedOs', 'description'],
+              required: ['name', 'destination', 'port', 'username', 'auth', 'os', 'detectedOs', 'session', 'description'],
               properties: {
                 name: { type: 'string' },
                 destination: { type: 'string' },
@@ -49,6 +50,7 @@ function sshHostsTool(getConfig, detector) {
                 auth: { type: 'string', enum: ['agent', 'key', 'password'] },
                 os: { type: 'string', enum: ['auto', 'linux', 'macos', 'windows'] },
                 detectedOs: { type: 'string', enum: ['', 'linux', 'macos', 'windows'] },
+                session: { type: 'string', enum: ['', 'idle', 'running'] },
                 description: { type: 'string' },
               },
             },
@@ -70,6 +72,7 @@ function sshHostsTool(getConfig, detector) {
           auth: host.auth,
           os: host.os,
           detectedOs: detector.get(host) ?? '',
+          session: sessions?.state(host.name) ?? '',
           description: host.description,
         })),
         warnings: [...warnings],

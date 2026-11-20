@@ -9,4 +9,7 @@
         commandTimeoutMs: 60000
         connectTimeoutSec: 15
         maxOutputBytes: 65536
+        remoteEncoding: auto
+        sessionMode: auto
+        sessionIdleMs: 300000
         hosts: []

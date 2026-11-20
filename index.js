@@ -27,6 +27,7 @@ import { readConfig } from './src/config.js'
 import { createOsDetector } from './src/detect.js'
 import { createLiveLog } from './src/live.js'
 import { liveRoute } from './src/route.js'
+import { createSessionManager } from './src/session.js'
 import { sshDownloadTool } from './src/tools/download.js'
 import { sshExecTool } from './src/tools/exec.js'
 import { sshHostsTool } from './src/tools/hosts.js'
@@ -58,11 +59,13 @@ export function apply(ctx, raw) {
   const askpass = createAskpass(() => getConfig().config.askpassPath)
   const live = createLiveLog()
   const detector = createOsDetector()
+  const sessions = createSessionManager({ getConfig })
   ctx.effect(() => askpass.cleanup)
+  ctx.effect(() => () => sessions.closeAll())
   ctx.effect(() => {
     const disposers = [
-      ctx.tools.register(sshHostsTool(getConfig, detector)),
-      ctx.tools.register(sshExecTool(getConfig, askpass, live, detector)),
+      ctx.tools.register(sshHostsTool(getConfig, detector, sessions)),
+      ctx.tools.register(sshExecTool(getConfig, askpass, live, detector, sessions)),
       ctx.tools.register(sshUploadTool(getConfig, askpass, live, detector)),
       ctx.tools.register(sshDownloadTool(getConfig, askpass, live, detector)),
     ]

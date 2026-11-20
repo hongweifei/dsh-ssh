@@ -3,8 +3,13 @@
  * termination and the timeout/abort aware runner.
  */
 import { spawn } from 'node:child_process'
+import { decodeOutput } from './encoding.js'
 
-/** Bounded byte collector: keeps draining after the cap so the child can exit. */
+/**
+ * Bounded byte collector: keeps draining after the cap so the child can exit.
+ * Decoding happens once at the end, on whole bytes, so a multi-byte character
+ * split across two chunks is never turned into replacement characters.
+ */
 function createCollector(limit) {
   const chunks = []
   let bytes = 0
@@ -25,8 +30,9 @@ function createCollector(limit) {
       chunks.push(chunk)
       bytes += chunk.length
     },
-    done() {
-      return { text: Buffer.concat(chunks, bytes).toString('utf8'), bytes, truncated }
+    done(encoding = 'auto') {
+      const decoded = decodeOutput(Buffer.concat(chunks, bytes), encoding)
+      return { text: decoded.text, bytes, truncated, encoding: decoded.encoding, lossy: decoded.lossy }
     },
   }
 }
@@ -74,7 +80,7 @@ function killChild(child) {
  * @returns exit code, signal, stdout, stderr, truncation flags and duration.
  */
 function runClient(command, args, options) {
-  const { env, timeoutMs, signal, maxOutputBytes, onChunk } = options
+  const { env, timeoutMs, signal, maxOutputBytes, onChunk, encoding = 'auto' } = options
   return new Promise((settle, fail) => {
     let child
     try {
@@ -124,8 +130,8 @@ function runClient(command, args, options) {
       child.stderr?.destroy()
     }
     const buildOutcome = () => {
-      const out = stdout.done()
-      const err = stderr.done()
+      const out = stdout.done(encoding)
+      const err = stderr.done(encoding)
       return {
         exitCode,
         signal: exitSignal,
@@ -133,6 +139,8 @@ function runClient(command, args, options) {
         stderr: err.text,
         truncatedStdout: out.truncated,
         truncatedStderr: err.truncated,
+        stdoutEncoding: out.encoding,
+        stderrEncoding: err.encoding,
         durationMs: Date.now() - startedAt,
         timedOut,
       }

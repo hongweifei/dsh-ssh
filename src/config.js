@@ -9,9 +9,12 @@ const AUTH_KINDS = new Set(['agent', 'key', 'password'])
 const STRICT_KINDS = new Set(['accept-new', 'yes', 'no', 'ask'])
 const SCP_MODES = new Set(['sftp', 'legacy'])
 const OS_KINDS = new Set(['auto', 'linux', 'macos', 'windows'])
+const ENCODING_KINDS = new Set(['auto', 'utf8', 'gbk'])
+const SESSION_MODES = new Set(['auto', 'off'])
 const DEFAULT_COMMAND_TIMEOUT_MS = 60_000
 const DEFAULT_CONNECT_TIMEOUT_SEC = 15
 const DEFAULT_MAX_OUTPUT_BYTES = 64 * 1024
+const DEFAULT_SESSION_IDLE_MS = 300_000
 /** Expand a leading `~` so paths work without a shell. */
 function expandHome(value) {
   if (typeof value !== 'string' || value === '') return value
@@ -114,6 +117,12 @@ function normalizeConfig(raw) {
     connectTimeoutSec: positiveInt(source.connectTimeoutSec, DEFAULT_CONNECT_TIMEOUT_SEC),
     maxOutputBytes: positiveInt(source.maxOutputBytes, DEFAULT_MAX_OUTPUT_BYTES),
     scpMode: SCP_MODES.has(source.scpMode) ? source.scpMode : 'sftp',
+    remoteEncoding: ENCODING_KINDS.has(source.remoteEncoding) ? source.remoteEncoding : 'auto',
+    sessionMode: SESSION_MODES.has(source.sessionMode) ? source.sessionMode : 'auto',
+    sessionIdleMs:
+      typeof source.sessionIdleMs === 'number' && Number.isFinite(source.sessionIdleMs) && source.sessionIdleMs >= 0
+        ? Math.floor(source.sessionIdleMs)
+        : DEFAULT_SESSION_IDLE_MS,
     strictHostKeyChecking: strictHostKeyCheckingOf(source.strictHostKeyChecking, 'accept-new'),
     hosts: [],
   }
@@ -163,6 +172,9 @@ export function readConfig(source) {
     connectTimeoutSec: liveValue(source, 'connectTimeoutSec'),
     maxOutputBytes: liveValue(source, 'maxOutputBytes'),
     scpMode: liveValue(source, 'scpMode'),
+    remoteEncoding: liveValue(source, 'remoteEncoding'),
+    sessionMode: liveValue(source, 'sessionMode'),
+    sessionIdleMs: liveValue(source, 'sessionIdleMs'),
     sshPath: liveValue(source, 'sshPath'),
     scpPath: liveValue(source, 'scpPath'),
     strictHostKeyChecking: liveValue(source, 'strictHostKeyChecking'),
@@ -175,9 +187,12 @@ export {
   STRICT_KINDS,
   SCP_MODES,
   OS_KINDS,
+  ENCODING_KINDS,
+  SESSION_MODES,
   DEFAULT_COMMAND_TIMEOUT_MS,
   DEFAULT_CONNECT_TIMEOUT_SEC,
   DEFAULT_MAX_OUTPUT_BYTES,
+  DEFAULT_SESSION_IDLE_MS,
   expandHome,
   resolveLocal,
   positiveInt,
